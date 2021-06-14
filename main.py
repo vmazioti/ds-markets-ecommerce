@@ -1,7 +1,7 @@
 import pymongo
 from pymongo import MongoClient
 from pymongo.errors import DuplicateKeyError
-from flask import Flask, request, jsonify, redirect, Response
+from flask import Flask, request, jsonify, redirect, Response, session
 import json, os
 import uuid
 import time
@@ -18,6 +18,7 @@ users = db['Users']
 products = db['Products']
 
 app = Flask(__name__)
+app.secret_key = "whatever"
 
 users_sessions = {}
 
@@ -195,6 +196,7 @@ def admin_insert_product():
     else:
         return Response("Product was not inserted", status=400, mimetype='application/json')
 
+
 @app.route('/adminDeleteProduct', methods=['POST'])
 def admin_delete_product():
     # uuid = request.headers.get('authorization')
@@ -217,6 +219,7 @@ def admin_delete_product():
     else:
         return Response("Product was not found", status=400, mimetype='application/json')
 
+
 @app.route('/adminUpdateProduct', methods=['POST'])
 def admin_update_product():
     # uuid = request.headers.get('authorization')
@@ -233,30 +236,118 @@ def admin_update_product():
     if not "_id" in data:
         return Response("Information incomplete", status=400, mimetype="application/json")
 
-    product = products.find_one_and_update({"_id": data['_id']}, {"$set": }
-    if product is True:
-        return Response("Product was deleted", status=200, mimetype='application/json')
+    updated_values = {}
+
+    if "name" in data:
+        updated_values["name"] = data['name']
+
+    if "price" in data:
+        updated_values["price"] = data['price']
+
+    if "description" in data:
+        updated_values["description"] = data['description']
+
+    if "stock" in data:
+        updated_values["stock"] = data['stock']
+
+    product = products.find_one_and_update({"_id": data['_id']}, {"$set": updated_values})
+
+    if product is not None:
+        return Response("Product was Updated", status=200, mimetype='application/json')
     else:
         return Response("Product was not found", status=400, mimetype='application/json')
 
 
-#mycollection.find_one_and_update({"_id": mongo_id},
-#                                 {"$set": {"newfield": "abc"}})
+@app.route('/addToCart', methods=['POST'])
+def add_to_cart():
+    # uuid = request.headers.get('authorization')
+    # if not is_session_valid(uuid):
+    #     return Response("User is not authenticated", status=401, mimetype='application/json')
+    data = None
+    try:
+        data = json.loads(request.data)
+    except Exception as e:
+        return Response("bad json content", status=400, mimetype='application/json')
+    if data == None:
+        return Response("bad request", status=400, mimetype='application/json')
+    if not "_id" in data or not "quantity" in data:
+        return Response("Information incomplete", status=400, mimetype="application/json")
+
+    product = products.find_one({"_id": data['_id']})
+    if products.find_one({"_id": data['_id']}) is None:
+        return Response("Product not found", status=400, mimetype='application/json')
+
+    product_quantity = data['quantity']
+    product_stock = product['stock']
+    if product_quantity > product_stock:
+        return Response("Not enough in stock", status=400, mimetype='application/json')
+
+    if 'cart' not in session:
+        session['cart'] = []
+    # TODO total price
+    if product:
+        product.update({'quantity': data['quantity']})
+        session['cart'].append(product)
+        # session['total'] += product['price']
+        # total_price = 0
+        # for _ in product:
+        #     total_price += product['price']
+        # print(total_price)
+        return Response(json.dumps(session['cart']), status=200, mimetype='application/json')
 
 
 
+@app.route('/showCart', methods=['GET'])
+def show_cart():
+    # uuid = request.headers.get('authorization')
+    # if not is_session_valid(uuid):
+    #     return Response("User is not authenticated", status=401, mimetype='application/json')
+    # TODO total price / cart doesn't show all products
+    return Response(json.dumps(session['cart']), status=200, mimetype='application/json')
 
+@app.route('/deleteFromCart', methods=['POST'])
+def delete_from_cart():
+    # uuid = request.headers.get('authorization')
+    # if not is_session_valid(uuid):
+    #     return Response("User is not authenticated", status=401, mimetype='application/json')
+    data = None
+    try:
+        data = json.loads(request.data)
+    except Exception as e:
+        return Response("bad json content", status=400, mimetype='application/json')
+    if data == None:
+        return Response("bad request", status=400, mimetype='application/json')
+    if not "_id" in data:
+        return Response("Information incomplete", status=400, mimetype="application/json")
+    # TODO delete product from cart
+    #product = products.find_one({"_id": data['_id']})
+    if data['_id'] in session['cart']:
+        #del product
+        return Response("The product was deleted from your cart", status=200, mimetype='application/json')
+    else:
+        return Response("This product is not in your cart", status=400, mimetype='application/json')
 
+@app.route('/deleteAccount', methods=['POST'])
+def delete_account():
+    # uuid = request.headers.get('authorization')
+    # if not is_session_valid(uuid):
+    #     return Response("User is not authenticated", status=401, mimetype='application/json')
+    data = None
+    try:
+        data = json.loads(request.data)
+    except Exception as e:
+        return Response("bad json content", status=400, mimetype='application/json')
+    if data == None:
+        return Response("bad request", status=400, mimetype='application/json')
+    if not "email" in data:
+        return Response("Information incomplete", status=400, mimetype="application/json")
 
-
-
-
-
-
-
-
-
-
+    user = users.find_one({"email": data['email']})
+    if user:
+        users.delete_one({"email": data['email']})
+        return Response("Your account was deleted", status=200, mimetype='application/json')
+    else:
+        return Response("No account found", status=400, mimetype='application/json')
 
 if __name__ == '__main__':
     app.run(debug=True)
