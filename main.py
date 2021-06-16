@@ -5,6 +5,7 @@ from flask import Flask, request, jsonify, redirect, Response, session
 import json, os
 import uuid
 import time
+from datetime import timedelta
 
 # Connect to our local MongoDB
 mongodb_hostname = os.environ.get("MONGO_HOSTNAME", "localhost")
@@ -18,10 +19,15 @@ users = db['Users']
 products = db['Products']
 
 app = Flask(__name__)
+# todo random alphanumeric
 app.secret_key = "whatever"
 
 users_sessions = {}
 
+@app.before_request
+def make_session_permanent():
+    session.permanent = True
+    app.permanent_session_lifetime = timedelta(minutes=10)
 
 def create_session(email):
     user_uuid = str(uuid.uuid1())
@@ -31,6 +37,13 @@ def create_session(email):
 
 def is_session_valid(user_uuid):
     return user_uuid in users_sessions
+
+def total_cost():
+    sum = 0
+    for product_id in session['cart']:
+        product = products.find_one({"_id": product_id})
+        sum += product['price'] * session['cart'][product_id]
+    return sum
 
 
 @app.route('/', methods=['GET'])
@@ -276,18 +289,27 @@ def add_to_cart():
     product = products.find_one({"_id": data['_id']})
     if products.find_one({"_id": data['_id']}) is None:
         return Response("Product not found", status=400, mimetype='application/json')
+    if 'cart' not in session:
+        session['cart'] = {
 
-    product_quantity = data['quantity']
+        }
+
+    cart_quantity = 0
+    if product['_id'] in session['cart']:
+        cart_quantity = session['cart'][product['_id']]
+
+    # TODO check stock update in cart
+    product_quantity = data['quantity'] + cart_quantity
     product_stock = product['stock']
     if product_quantity > product_stock:
         return Response("Not enough in stock", status=400, mimetype='application/json')
 
-    if 'cart' not in session:
-        session['cart'] = []
+
     # TODO total price
     if product:
-        product.update({'quantity': data['quantity']})
-        session['cart'].append(product)
+        session['cart'][product['_id']] = product_quantity
+        session['cart']['total'] = total_cost()
+
         # session['total'] += product['price']
         # total_price = 0
         # for _ in product:
