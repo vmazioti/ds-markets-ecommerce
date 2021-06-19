@@ -24,10 +24,12 @@ app.secret_key = "whatever"
 
 users_sessions = {}
 
+
 @app.before_request
 def make_session_permanent():
     session.permanent = True
     app.permanent_session_lifetime = timedelta(minutes=10)
+
 
 def create_session(email):
     user_uuid = str(uuid.uuid1())
@@ -38,17 +40,13 @@ def create_session(email):
 def is_session_valid(user_uuid):
     return user_uuid in users_sessions
 
-def total_cost():
-    sum = 0
-    for product_id in session['cart']:
-        product = products.find_one({"_id": product_id})
-        sum += product['price'] * session['cart'][product_id]
-    return sum
 
-
-@app.route('/', methods=['GET'])
-def test():
-    return "Hello World!"
+# def total_cost():
+#     sum = 0
+#     for product_id in session['cart']:
+#         product = products.find_one({"_id": product_id})
+#         sum += product['price'] * session['cart'][product_id]
+#     return sum
 
 
 @app.route('/signUp', methods=['POST'])
@@ -290,33 +288,24 @@ def add_to_cart():
     if products.find_one({"_id": data['_id']}) is None:
         return Response("Product not found", status=400, mimetype='application/json')
     if 'cart' not in session:
-        session['cart'] = {
-
-        }
+        session['cart'] = {}
 
     cart_quantity = 0
     if product['_id'] in session['cart']:
         cart_quantity = session['cart'][product['_id']]
 
-    # TODO check stock update in cart
     product_quantity = data['quantity'] + cart_quantity
     product_stock = product['stock']
     if product_quantity > product_stock:
         return Response("Not enough in stock", status=400, mimetype='application/json')
+    else:
+        new_stock = product_stock - product_quantity
+        products.update_one({"_id": data['_id']},{"$set": {"stock": new_stock}})
 
+    session['cart'][product['_id']] = product_quantity
+    session['cart']['total'] += product['price'] * product_quantity
 
-    # TODO total price
-    if product:
-        session['cart'][product['_id']] = product_quantity
-        session['cart']['total'] = total_cost()
-
-        # session['total'] += product['price']
-        # total_price = 0
-        # for _ in product:
-        #     total_price += product['price']
-        # print(total_price)
-        return Response(json.dumps(session['cart']), status=200, mimetype='application/json')
-
+    return Response(json.dumps(session['cart']), status=200, mimetype='application/json')
 
 
 @app.route('/showCart', methods=['GET'])
@@ -324,7 +313,6 @@ def show_cart():
     # uuid = request.headers.get('authorization')
     # if not is_session_valid(uuid):
     #     return Response("User is not authenticated", status=401, mimetype='application/json')
-    # TODO total price / cart doesn't show all products
     return Response(json.dumps(session['cart']), status=200, mimetype='application/json')
 
 @app.route('/deleteFromCart', methods=['POST'])
@@ -342,12 +330,40 @@ def delete_from_cart():
     if not "_id" in data:
         return Response("Information incomplete", status=400, mimetype="application/json")
     # TODO delete product from cart
-    #product = products.find_one({"_id": data['_id']})
-    if data['_id'] in session['cart']:
-        #del product
-        return Response("The product was deleted from your cart", status=200, mimetype='application/json')
-    else:
+    product = products.find_one({"_id": data['_id']})
+    if not product['_id'] in session['cart']:
         return Response("This product is not in your cart", status=400, mimetype='application/json')
+
+    session['cart'][product['_id']] = 0
+    return Response("The product was deleted from your cart", status=200, mimetype='application/json')
+
+
+
+@app.route('/checkout', methods=['POST'])
+def checkout():
+    # uuid = request.headers.get('authorization')
+    # if not is_session_valid(uuid):
+    #     return Response("User is not authenticated", status=401, mimetype='application/json')
+
+    data = None
+    try:
+        data = json.loads(request.data)
+    except Exception as e:
+        return Response("bad json content", status=400, mimetype='application/json')
+    if data == None:
+        return Response("bad request", status=400, mimetype='application/json')
+    if not "card_number" in data:
+        return Response("Information incomplete", status=400, mimetype="application/json")
+
+    card_number = data['card_number']
+    card_number_len = len(card_number)
+    while card_number_len != 16:
+        return Response("Card number is incorrect", status=400, mimetype='application/json')
+
+
+    #return Response("Payment recieved\nThank you for your order/nOrder details:", json.dumps(session['cart']), status=200, mimetype='application/json')
+    return Response("Payment received\nThank you for your order!", status=200,mimetype='application/json')
+
 
 @app.route('/deleteAccount', methods=['POST'])
 def delete_account():
@@ -370,6 +386,7 @@ def delete_account():
         return Response("Your account was deleted", status=200, mimetype='application/json')
     else:
         return Response("No account found", status=400, mimetype='application/json')
+
 
 if __name__ == '__main__':
     app.run(debug=True)
