@@ -291,7 +291,7 @@ def add_to_cart():
         session['cart'] = {}
 
     if 'total' not in session['cart']:
-        session['cart']['total']= 0
+        session['cart']['total'] = 0
 
     cart_quantity = 0
     if product['_id'] in session['cart']:
@@ -303,8 +303,7 @@ def add_to_cart():
         return Response("Not enough in stock", status=400, mimetype='application/json')
     else:
         new_stock = product_stock - product_quantity
-        products.update_one({"_id": data['_id']},{"$set": {"stock": new_stock}})
-
+        products.update_one({"_id": data['_id']}, {"$set": {"stock": new_stock}})
 
     session['cart'][product['_id']] = product_quantity
     session['cart']['total'] += product['price'] * product_quantity
@@ -318,6 +317,7 @@ def show_cart():
     # if not is_session_valid(uuid):
     #     return Response("User is not authenticated", status=401, mimetype='application/json')
     return Response(json.dumps(session['cart']), status=200, mimetype='application/json')
+
 
 @app.route('/deleteFromCart', methods=['POST'])
 def delete_from_cart():
@@ -343,7 +343,6 @@ def delete_from_cart():
     return Response("The product was deleted from your cart", status=200, mimetype='application/json')
 
 
-
 @app.route('/checkout', methods=['POST'])
 def checkout():
     # uuid = request.headers.get('authorization')
@@ -365,9 +364,10 @@ def checkout():
     while card_number_len != 16:
         return Response("Card number is incorrect", status=400, mimetype='application/json')
 
-
-    #return Response("Payment recieved\nThank you for your order/nOrder details:", json.dumps(session['cart']), status=200, mimetype='application/json')
-    return Response("Payment received\nThank you for your order!", status=200,mimetype='application/json')
+    #put cart in user
+    response = json.dumps(session['cart'])
+    del session['cart']
+    return Response(response, status=200, mimetype='application/json')
 
 
 @app.route('/deleteAccount', methods=['POST'])
