@@ -290,6 +290,9 @@ def add_to_cart():
     if 'cart' not in session:
         session['cart'] = {}
 
+    if 'total' not in session['cart']:
+        session['cart']['total']= 0
+
     cart_quantity = 0
     if product['_id'] in session['cart']:
         cart_quantity = session['cart'][product['_id']]
@@ -301,6 +304,7 @@ def add_to_cart():
     else:
         new_stock = product_stock - product_quantity
         products.update_one({"_id": data['_id']},{"$set": {"stock": new_stock}})
+
 
     session['cart'][product['_id']] = product_quantity
     session['cart']['total'] += product['price'] * product_quantity
@@ -329,12 +333,13 @@ def delete_from_cart():
         return Response("bad request", status=400, mimetype='application/json')
     if not "_id" in data:
         return Response("Information incomplete", status=400, mimetype="application/json")
-    # TODO delete product from cart
+
     product = products.find_one({"_id": data['_id']})
     if not product['_id'] in session['cart']:
         return Response("This product is not in your cart", status=400, mimetype='application/json')
 
-    session['cart'][product['_id']] = 0
+    session['cart']['total'] -= product['price'] * session['cart'][product['_id']]
+    del session['cart'][product['_id']]
     return Response("The product was deleted from your cart", status=200, mimetype='application/json')
 
 
