@@ -7,20 +7,17 @@ import uuid
 import time
 from datetime import timedelta
 
-# Connect to our local MongoDB
 mongodb_hostname = os.environ.get("MONGO_HOSTNAME", "localhost")
 client = MongoClient('mongodb://' + mongodb_hostname + ':27017/')
 
-# Choose database
 db = client['DSMarkets']
 
-# Choose collections
 users = db['Users']
 products = db['Products']
 
 app = Flask(__name__)
-# todo random alphanumeric
-app.secret_key = "whatever"
+
+app.secret_key = "3088122373"
 
 users_sessions = {}
 
@@ -39,15 +36,6 @@ def create_session(email):
 
 def is_session_valid(user_uuid):
     return user_uuid in users_sessions
-
-
-# def total_cost():
-#     sum = 0
-#     for product_id in session['cart']:
-#         product = products.find_one({"_id": product_id})
-#         sum += product['price'] * session['cart'][product_id]
-#     return sum
-
 
 @app.route('/signUp', methods=['POST'])
 def sign_up():
@@ -116,9 +104,9 @@ def admin_login():
 
 @app.route('/searchProductByName', methods=['POST'])
 def search_product_by_name():
-    # uuid = request.headers.get('authorization')
-    # if not is_session_valid(uuid):
-    #     return Response("User is not authenticated", status=401, mimetype='application/json')
+    uuid = request.headers.get('authorization')
+    if not is_session_valid(uuid):
+        return Response("User is not authenticated", status=401, mimetype='application/json')
 
     data = None
     try:
@@ -139,9 +127,9 @@ def search_product_by_name():
 
 @app.route('/searchProductByCategory', methods=['POST'])
 def search_product_by_category():
-    # uuid = request.headers.get('authorization')
-    # if not is_session_valid(uuid):
-    #     return Response("User is not authenticated", status=401, mimetype='application/json')
+    uuid = request.headers.get('authorization')
+    if not is_session_valid(uuid):
+        return Response("User is not authenticated", status=401, mimetype='application/json')
 
     data = None
     try:
@@ -162,9 +150,9 @@ def search_product_by_category():
 
 @app.route('/searchProductById', methods=['POST'])
 def search_product_by_id():
-    # uuid = request.headers.get('authorization')
-    # if not is_session_valid(uuid):
-    #     return Response("User is not authenticated", status=401, mimetype='application/json')
+    uuid = request.headers.get('authorization')
+    if not is_session_valid(uuid):
+        return Response("User is not authenticated", status=401, mimetype='application/json')
 
     data = None
     try:
@@ -185,9 +173,9 @@ def search_product_by_id():
 
 @app.route('/adminInsertProduct', methods=['POST'])
 def admin_insert_product():
-    # uuid = request.headers.get('authorization')
-    # if not is_session_valid(uuid):
-    #     return Response("User is not authenticated", status=401, mimetype='application/json')
+    uuid = request.headers.get('authorization')
+    if not is_session_valid(uuid):
+        return Response("User is not authenticated", status=401, mimetype='application/json')
 
     data = None
     try:
@@ -210,9 +198,9 @@ def admin_insert_product():
 
 @app.route('/adminDeleteProduct', methods=['POST'])
 def admin_delete_product():
-    # uuid = request.headers.get('authorization')
-    # if not is_session_valid(uuid):
-    #     return Response("User is not authenticated", status=401, mimetype='application/json')
+    uuid = request.headers.get('authorization')
+    if not is_session_valid(uuid):
+        return Response("User is not authenticated", status=401, mimetype='application/json')
 
     data = None
     try:
@@ -233,9 +221,9 @@ def admin_delete_product():
 
 @app.route('/adminUpdateProduct', methods=['POST'])
 def admin_update_product():
-    # uuid = request.headers.get('authorization')
-    # if not is_session_valid(uuid):
-    #     return Response("User is not authenticated", status=401, mimetype='application/json')
+    uuid = request.headers.get('authorization')
+    if not is_session_valid(uuid):
+        return Response("User is not authenticated", status=401, mimetype='application/json')
 
     data = None
     try:
@@ -271,9 +259,10 @@ def admin_update_product():
 
 @app.route('/addToCart', methods=['POST'])
 def add_to_cart():
-    # uuid = request.headers.get('authorization')
-    # if not is_session_valid(uuid):
-    #     return Response("User is not authenticated", status=401, mimetype='application/json')
+    uuid = request.headers.get('authorization')
+    if not is_session_valid(uuid):
+        return Response("User is not authenticated", status=401, mimetype='application/json')
+
     data = None
     try:
         data = json.loads(request.data)
@@ -313,17 +302,19 @@ def add_to_cart():
 
 @app.route('/showCart', methods=['GET'])
 def show_cart():
-    # uuid = request.headers.get('authorization')
-    # if not is_session_valid(uuid):
-    #     return Response("User is not authenticated", status=401, mimetype='application/json')
+    uuid = request.headers.get('authorization')
+    if not is_session_valid(uuid):
+        return Response("User is not authenticated", status=401, mimetype='application/json')
+
     return Response(json.dumps(session['cart']), status=200, mimetype='application/json')
 
 
 @app.route('/deleteFromCart', methods=['POST'])
 def delete_from_cart():
-    # uuid = request.headers.get('authorization')
-    # if not is_session_valid(uuid):
-    #     return Response("User is not authenticated", status=401, mimetype='application/json')
+    uuid = request.headers.get('authorization')
+    if not is_session_valid(uuid):
+        return Response("User is not authenticated", status=401, mimetype='application/json')
+
     data = None
     try:
         data = json.loads(request.data)
@@ -345,9 +336,9 @@ def delete_from_cart():
 
 @app.route('/checkout', methods=['POST'])
 def checkout():
-    # uuid = request.headers.get('authorization')
-    # if not is_session_valid(uuid):
-    #     return Response("User is not authenticated", status=401, mimetype='application/json')
+    uuid = request.headers.get('authorization')
+    if not is_session_valid(uuid):
+        return Response("User is not authenticated", status=401, mimetype='application/json')
 
     data = None
     try:
@@ -364,17 +355,19 @@ def checkout():
     while card_number_len != 16:
         return Response("Card number is incorrect", status=400, mimetype='application/json')
 
-    #put cart in user
     response = json.dumps(session['cart'])
     del session['cart']
     return Response(response, status=200, mimetype='application/json')
+    #Εδώ θα έπρεπε να προσθέτει το καλάθι του πελάτη στο ιστορικό παραγγελιών ώστε να μπορεί να έχει πρόσβαση
+    # σε αυτό για το ζητούμενο, αλλά λόγω χρόνου δεν κατάφερα να το υλοποιήσω
 
 
 @app.route('/deleteAccount', methods=['POST'])
 def delete_account():
-    # uuid = request.headers.get('authorization')
-    # if not is_session_valid(uuid):
-    #     return Response("User is not authenticated", status=401, mimetype='application/json')
+    uuid = request.headers.get('authorization')
+    if not is_session_valid(uuid):
+        return Response("User is not authenticated", status=401, mimetype='application/json')
+
     data = None
     try:
         data = json.loads(request.data)
